@@ -807,10 +807,10 @@
       });
 
       const idx = teamGames.findIndex(g => String(g.gameId) === String(currentGameId));
-      const endIdx = idx === -1 ? teamGames.length : idx;
+      const endIdx = idx === -1 ? teamGames.length : idx; // games BEFORE this matchup
       const startIdx = Math.max(0, endIdx - n);
       const slice = teamGames.slice(startIdx, endIdx);
-      return slice.reverse();
+      return slice.reverse(); // most recent first
     }
 
     async function buildTeamHistory(teamId, currentGameId) {
@@ -823,6 +823,16 @@
       return { games: lastGames, boxscores };
     }
 
+    // helper: given a history (with boxscores) and a teamId, pick a recent boxscore and return that team object (for roster)
+    function getReferenceTeamFromHistory(teamHistory, teamId) {
+      const refBox = (teamHistory.boxscores || []).find(Boolean);
+      if (!refBox) return null;
+      const g = refBox.game || refBox;
+      if (String(g.homeTeam.teamId) === String(teamId)) return g.homeTeam;
+      if (String(g.awayTeam.teamId) === String(teamId)) return g.awayTeam;
+      return null;
+    }
+
     async function loadGameDetail(game) {
       appState.activeGameId = game.gameId;
       const container = document.getElementById('game-detail');
@@ -830,27 +840,31 @@
       container.innerHTML = '<div class="loading">Loading game details and last 10 games…</div>';
 
       try {
-        const [currentBoxscore, homeHistory, awayHistory] = await Promise.all([
-          getBoxscore(game.gameId),
+        // NOTE: we do NOT fetch today's game boxscore, because it may not exist yet.
+        const [homeHistory, awayHistory] = await Promise.all([
           buildTeamHistory(game.homeTeam.teamId, game.gameId),
           buildTeamHistory(game.awayTeam.teamId, game.gameId)
         ]);
 
-        if (!currentBoxscore || !homeHistory || !awayHistory) {
-          renderError('Could not load boxscores or team histories. This is almost always a CORS / proxy issue.');
+        if (!homeHistory || !awayHistory) {
+          renderError('Could not load team histories. Likely schedule or network issue.');
           return;
         }
 
-        const boxGame = currentBoxscore.game || currentBoxscore;
-        const homeTeam = boxGame.homeTeam;
-        const awayTeam = boxGame.awayTeam;
+        const homeTeamRef = getReferenceTeamFromHistory(homeHistory, game.homeTeam.teamId);
+        const awayTeamRef = getReferenceTeamFromHistory(awayHistory, game.awayTeam.teamId);
+
+        if (!homeTeamRef || !awayTeamRef) {
+          renderError('No recent boxscores found for one of these teams. Try a different matchup or later in the season.');
+          return;
+        }
 
         const wrapper = document.createElement('div');
 
         const header = document.createElement('div');
         header.className = 'game-header';
         const title = document.createElement('h2');
-        title.textContent = `${awayTeam.teamTricode} @ ${homeTeam.teamTricode}`;
+        title.textContent = `${game.awayTeam.teamTricode} @ ${game.homeTeam.teamTricode}`;
 
         const tag = document.createElement('div');
         tag.className = 'tag';
@@ -868,17 +882,21 @@
         const teamsContainer = document.createElement('div');
         teamsContainer.className = 'teams-container';
 
-        function buildTeamPanel(team, history, label) {
+        function buildTeamPanel(scoreboardTeam, history, refTeam, label) {
           const panel = document.createElement('div');
           panel.className = 'team-panel';
+
           const title = document.createElement('h3');
-          title.textContent = `${team.teamCity} ${team.teamName} (${label})`;
+          // prefer scoreboard naming if present
+          const city = scoreboardTeam.teamCity || refTeam.teamCity || '';
+          const name = scoreboardTeam.teamName || refTeam.teamName || '';
+          title.textContent = `${city} ${name} (${label})`;
           panel.appendChild(title);
 
           const playersList = document.createElement('div');
           playersList.className = 'players-list';
 
-          const players = (team.players || []).slice();
+          const players = (refTeam.players || []).slice();
           players.sort((a, b) => {
             const aStarter = a.starter === '1' ? 1 : 0;
             const bStarter = b.starter === '1' ? 1 : 0;
@@ -887,8 +905,8 @@
           });
 
           players.forEach(player => {
-            const hist = computePlayerHistory(player.personId, team.teamId, history);
-            const card = buildPlayerCard(player, team.teamId, hist);
+            const hist = computePlayerHistory(player.personId, refTeam.teamId, history);
+            const card = buildPlayerCard(player, refTeam.teamId, hist);
             playersList.appendChild(card);
           });
 
@@ -896,8 +914,8 @@
           return panel;
         }
 
-        const homePanel = buildTeamPanel(homeTeam, homeHistory, 'HOME');
-        const awayPanel = buildTeamPanel(awayTeam, awayHistory, 'AWAY');
+        const homePanel = buildTeamPanel(game.homeTeam, homeHistory, homeTeamRef, 'HOME');
+        const awayPanel = buildTeamPanel(game.awayTeam, awayHistory, awayTeamRef, 'AWAY');
 
         teamsContainer.appendChild(homePanel);
         teamsContainer.appendChild(awayPanel);
@@ -978,6 +996,7 @@
         statusEl.textContent = 'Unexpected error while loading games.';
       }
     }
+
     document.addEventListener('DOMContentLoaded', () => {
       runTests();
       init();
