@@ -172,9 +172,52 @@
       color: #9ca3af;
     }
 
-    .player-minima {
+    .player-content {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .stat-grid-wrapper {
+      flex: 1 1 auto;
+    }
+
+    .player-summary {
+      flex: 0 0 160px;
+      background: rgba(15, 23, 42, 1);
+      border-radius: 10px;
+      border: 1px solid rgba(59, 130, 246, 0.8);
+      padding: 6px 8px;
       font-size: 11px;
-      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .summary-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #bfdbfe;
+      margin-bottom: 2px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .summary-label {
+      font-weight: 600;
+      color: #9ca3af;
+      white-space: nowrap;
+    }
+
+    .summary-value {
+      font-weight: 700;
+      color: #f9fafb;
+      font-size: 11px;
       text-align: right;
       white-space: nowrap;
     }
@@ -182,43 +225,51 @@
     .stat-grid {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      font-size: 11px;
+      gap: 1px;
+      font-size: 10px;
       overflow-x: auto;
     }
 
     .stat-row {
       display: grid;
-      grid-template-columns: 32px repeat(10, 1fr);
-      gap: 2px;
+      grid-template-columns: 30px repeat(10, minmax(18px, 1fr));
+      gap: 1px;
       align-items: center;
+    }
+
+    .stat-row--dates {
+      margin-bottom: 2px;
     }
 
     .stat-label {
       font-weight: 600;
       text-align: center;
       color: #9ca3af;
+      font-size: 9px;
+    }
+
+    .stat-label--date {
+      font-size: 9px;
+      color: #6b7280;
     }
 
     .stat-cell {
       text-align: center;
-      padding: 2px 0;
-      border-radius: 4px;
+      padding: 1px 0;
+      border-radius: 3px;
       background: rgba(15, 23, 42, 0.95);
       border: 1px solid rgba(31, 41, 55, 0.9);
-      min-width: 20px;
+      min-width: 18px;
+    }
+
+    .stat-cell--date {
+      font-size: 9px;
+      color: #9ca3af;
+      border-style: dotted;
     }
 
     .stat-cell--empty {
       opacity: 0.4;
-    }
-
-    /* Highlight lowest non-zero values in red so they pop for betting decisions */
-    .stat-cell--low {
-      background: rgba(127, 29, 29, 0.9);
-      border-color: rgba(248, 113, 113, 0.95);
-      color: #fee2e2;
-      font-weight: 700;
     }
 
     .tag {
@@ -260,6 +311,12 @@
         border-right: none;
         border-bottom: 1px solid rgba(148, 163, 184, 0.4);
       }
+      .player-content {
+        flex-direction: column;
+      }
+      .player-summary {
+        flex: 1 1 auto;
+      }
     }
   </style>
 </head>
@@ -283,7 +340,7 @@
     <main class="main">
       <div id="game-detail" class="placeholder">
         Choose a matchup on the left to see players and last 10-game stats.<br /><br />
-        Lowest <strong>non-zero</strong> values in each row will be highlighted in red.
+        Each player card shows a compact 10-game grid with game dates on top, and on the right a clear LOW (non-zero) and AVG P/R/A box.
       </div>
     </main>
   </div>
@@ -419,7 +476,7 @@
       return Math.min(...filtered);
     }
 
-    // New helper: prefer lowest NON-ZERO value; only use 0 if that's all there is.
+    // Prefer lowest NON-ZERO value; only use 0 if that's all there is.
     function minNonZeroPreferred(values) {
       const filtered = values.filter(v => v !== null && v !== undefined);
       if (!filtered.length) return { low: null, lowNonZero: null };
@@ -429,7 +486,44 @@
       return { low, lowNonZero };
     }
 
-    function createStatRow(label, values, lowValue) {
+    function avgNonNull(values) {
+      const filtered = values.filter(v => v !== null && v !== undefined);
+      if (!filtered.length) return null;
+      const sum = filtered.reduce((acc, v) => acc + v, 0);
+      return Number((sum / filtered.length).toFixed(1));
+    }
+
+    function formatScheduleDate(raw) {
+      if (!raw) return null;
+      // Expecting YYYY-MM-DD, keep MM-DD for compact view
+      if (raw.length >= 10) {
+        return raw.slice(5, 10);
+      }
+      return raw;
+    }
+
+    function createDateRow(dates) {
+      const row = document.createElement('div');
+      row.className = 'stat-row stat-row--dates';
+
+      const labelEl = document.createElement('div');
+      labelEl.className = 'stat-label stat-label--date';
+      labelEl.textContent = 'DATE';
+      row.appendChild(labelEl);
+
+      const totalSlots = GAMES_TO_LOOK_BACK;
+      for (let i = 0; i < totalSlots; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'stat-cell stat-cell--date';
+        const val = dates[i];
+        cell.textContent = val || '-';
+        row.appendChild(cell);
+      }
+
+      return row;
+    }
+
+    function createStatRow(label, values) {
       const row = document.createElement('div');
       row.className = 'stat-row';
 
@@ -448,9 +542,6 @@
           cell.textContent = '-';
         } else {
           cell.textContent = val;
-          if (lowValue !== null && lowValue !== undefined && val === lowValue) {
-            cell.classList.add('stat-cell--low');
-          }
         }
         row.appendChild(cell);
       }
@@ -473,32 +564,75 @@
       metaEl.className = 'player-meta';
       metaEl.textContent = player.position ? player.position.toUpperCase() : '';
 
-      const minimaEl = document.createElement('div');
-      minimaEl.className = 'player-minima';
-      const { minPoints, minAssists, minRebounds } = historyStats;
-      // More concise summary: LOW: P x / A y / R z
-      minimaEl.textContent = `LOW P:${minPoints ?? '-'} A:${minAssists ?? '-'} R:${minRebounds ?? '-'}`;
+      header.appendChild(nameEl);
+      header.appendChild(metaEl);
 
-      const left = document.createElement('div');
-      left.appendChild(nameEl);
-      left.appendChild(metaEl);
+      const content = document.createElement('div');
+      content.className = 'player-content';
 
-      header.appendChild(left);
-      header.appendChild(minimaEl);
+      const gridWrapper = document.createElement('div');
+      gridWrapper.className = 'stat-grid-wrapper';
 
       const statGrid = document.createElement('div');
       statGrid.className = 'stat-grid';
 
-      const ptsRow = createStatRow('PTS', historyStats.points, historyStats.lowPointsValue);
-      const astRow = createStatRow('AST', historyStats.assists, historyStats.lowAssistsValue);
-      const rebRow = createStatRow('REB', historyStats.rebounds, historyStats.lowReboundsValue);
+      const dateRow = createDateRow(historyStats.dates || []);
+      const ptsRow = createStatRow('PTS', historyStats.points);
+      const astRow = createStatRow('AST', historyStats.assists);
+      const rebRow = createStatRow('REB', historyStats.rebounds);
 
+      statGrid.appendChild(dateRow);
       statGrid.appendChild(ptsRow);
       statGrid.appendChild(astRow);
       statGrid.appendChild(rebRow);
 
+      gridWrapper.appendChild(statGrid);
+
+      const summary = document.createElement('div');
+      summary.className = 'player-summary';
+
+      const summaryTitle = document.createElement('div');
+      summaryTitle.className = 'summary-title';
+      summaryTitle.textContent = 'Key Prop Stats';
+
+      const lowRow = document.createElement('div');
+      lowRow.className = 'summary-row';
+      const lowLabel = document.createElement('div');
+      lowLabel.className = 'summary-label';
+      lowLabel.textContent = 'LOW (NZ)';
+
+      const lowVal = document.createElement('div');
+      lowVal.className = 'summary-value';
+      const lowP = historyStats.minPointsNonZero ?? historyStats.minPoints;
+      const lowR = historyStats.minReboundsNonZero ?? historyStats.minRebounds;
+      const lowA = historyStats.minAssistsNonZero ?? historyStats.minAssists;
+      lowVal.textContent = `P:${lowP ?? '-'} R:${lowR ?? '-'} A:${lowA ?? '-'}`;
+
+      lowRow.appendChild(lowLabel);
+      lowRow.appendChild(lowVal);
+
+      const avgRow = document.createElement('div');
+      avgRow.className = 'summary-row';
+      const avgLabel = document.createElement('div');
+      avgLabel.className = 'summary-label';
+      avgLabel.textContent = 'AVG';
+
+      const avgVal = document.createElement('div');
+      avgVal.className = 'summary-value';
+      avgVal.textContent = `P:${historyStats.avgPoints ?? '-'} R:${historyStats.avgRebounds ?? '-'} A:${historyStats.avgAssists ?? '-'}`;
+
+      avgRow.appendChild(avgLabel);
+      avgRow.appendChild(avgVal);
+
+      summary.appendChild(summaryTitle);
+      summary.appendChild(lowRow);
+      summary.appendChild(avgRow);
+
+      content.appendChild(gridWrapper);
+      content.appendChild(summary);
+
       card.appendChild(header);
-      card.appendChild(statGrid);
+      card.appendChild(content);
 
       return card;
     }
@@ -507,12 +641,14 @@
       const points = [];
       const assists = [];
       const rebounds = [];
+      const dates = [];
 
-      teamHistory.boxscores.forEach(bs => {
+      teamHistory.boxscores.forEach((bs, idx) => {
         if (!bs) {
           points.push(null);
           assists.push(null);
           rebounds.push(null);
+          dates.push(null);
           return;
         }
         const game = bs.game || bs;
@@ -522,6 +658,11 @@
         } else if (String(game.awayTeam.teamId) === String(teamId)) {
           teamObj = game.awayTeam;
         }
+
+        const gameInfo = teamHistory.games[idx];
+        const rawDate = gameInfo ? (gameInfo.gameDate || gameInfo.scheduleGameDate) : null;
+        dates.push(formatScheduleDate(rawDate));
+
         if (!teamObj || !teamObj.players) {
           points.push(null);
           assists.push(null);
@@ -540,20 +681,28 @@
         }
       });
 
-      const { low: minPoints, lowNonZero: lowPointsNonZero } = minNonZeroPreferred(points);
-      const { low: minAssists, lowNonZero: lowAssistsNonZero } = minNonZeroPreferred(assists);
-      const { low: minRebounds, lowNonZero: lowReboundsNonZero } = minNonZeroPreferred(rebounds);
+      const { low: minPoints, lowNonZero: minPointsNonZero } = minNonZeroPreferred(points);
+      const { low: minAssists, lowNonZero: minAssistsNonZero } = minNonZeroPreferred(assists);
+      const { low: minRebounds, lowNonZero: minReboundsNonZero } = minNonZeroPreferred(rebounds);
+
+      const avgPoints = avgNonNull(points);
+      const avgAssists = avgNonNull(assists);
+      const avgRebounds = avgNonNull(rebounds);
 
       return {
         points,
         assists,
         rebounds,
+        dates,
         minPoints,
         minAssists,
         minRebounds,
-        lowPointsValue: lowPointsNonZero ?? minPoints,
-        lowAssistsValue: lowAssistsNonZero ?? minAssists,
-        lowReboundsValue: lowReboundsNonZero ?? minRebounds
+        minPointsNonZero,
+        minAssistsNonZero,
+        minReboundsNonZero,
+        avgPoints,
+        avgAssists,
+        avgRebounds
       };
     }
 
@@ -694,6 +843,15 @@
       console.log('Expect low=2, lowNonZero=2:', minNonZeroPreferred([0, 2, 5, 0, 7]));
       console.log('Expect low=5, lowNonZero=5 (no zeros):', minNonZeroPreferred([5, 9, 12]));
       console.log('Expect low=0, lowNonZero=null (only zeros):', minNonZeroPreferred([0, 0]));
+
+      console.log('avgNonNull tests');
+      console.log('Expect 5.0:', avgNonNull([4, 6]));
+      console.log('Expect 3.3:', avgNonNull([3, 3, 4]));
+      console.log('Expect null:', avgNonNull([null, undefined]));
+
+      console.log('formatScheduleDate tests');
+      console.log('Expect 11-21:', formatScheduleDate('2024-11-21'));
+      console.log('Expect null:', formatScheduleDate(null));
 
       console.groupEnd();
     }
