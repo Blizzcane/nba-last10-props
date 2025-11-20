@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>NBA Last 10 Games Prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     * {
       box-sizing: border-box;
@@ -18,24 +19,35 @@
 
     .app {
       display: flex;
+      flex-direction: column;
       min-height: 100vh;
+      background: radial-gradient(circle at top, #020617, #020617 40%, #020617);
     }
 
+    /* Top games strip (mobile-first) */
     .sidebar {
-      width: 300px;
-      border-right: 1px solid rgba(148, 163, 184, 0.4);
-      padding: 16px;
+      width: 100%;
+      padding: 12px 12px 8px 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.4);
       background: radial-gradient(circle at top left, #0f172a, #020617);
+    }
+
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 8px;
     }
 
     .sidebar h1 {
       font-size: 18px;
-      margin-bottom: 8px;
+      font-weight: 600;
     }
 
     .sidebar small {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       color: #9ca3af;
       font-size: 12px;
     }
@@ -50,16 +62,34 @@
       border: 1px solid rgba(248, 113, 113, 0.6);
     }
 
+    .sidebar-status {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+
     .games-list {
-      max-height: calc(100vh - 120px);
-      overflow-y: auto;
-      padding-right: 4px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .games-list::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .games-list::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.6);
+      border-radius: 999px;
     }
 
     .game-item {
+      flex: 0 0 auto;
+      min-width: 160px;
       border-radius: 10px;
-      padding: 10px 12px;
-      margin-bottom: 8px;
+      padding: 8px 10px;
       cursor: pointer;
       background: rgba(15, 23, 42, 0.85);
       border: 1px solid transparent;
@@ -80,8 +110,9 @@
     .game-teams {
       display: flex;
       justify-content: space-between;
-      font-size: 14px;
-      margin-bottom: 4px;
+      font-size: 13px;
+      margin-bottom: 2px;
+      font-weight: 500;
     }
 
     .game-meta {
@@ -91,7 +122,7 @@
 
     .main {
       flex: 1;
-      padding: 16px;
+      padding: 10px 10px 16px 10px;
       overflow-y: auto;
     }
 
@@ -107,11 +138,12 @@
     }
 
     .game-header {
-      margin-bottom: 16px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
+      align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .game-header h2 {
@@ -119,39 +151,55 @@
       font-weight: 600;
     }
 
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      padding: 2px 8px;
+      font-size: 11px;
+      color: #9ca3af;
+      gap: 4px;
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .tag-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+
     .teams-container {
       display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .team-panel {
-      flex: 1 1 420px;
       background: radial-gradient(circle at top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.9));
       border-radius: 14px;
       border: 1px solid rgba(51, 65, 85, 0.9);
-      padding: 12px;
-      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.8);
+      padding: 8px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.7);
     }
 
     .team-panel h3 {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       margin-bottom: 8px;
     }
 
     .players-list {
-      max-height: calc(100vh - 180px);
-      overflow-y: auto;
-      padding-right: 6px;
+      max-height: none;
     }
 
     .player-card {
       border-radius: 12px;
       border: 1px solid rgba(55, 65, 81, 0.9);
-      padding: 8px 10px;
+      padding: 8px 8px 10px 8px;
       margin-bottom: 8px;
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.96);
     }
 
     .player-header {
@@ -163,7 +211,7 @@
     }
 
     .player-name {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
     }
 
@@ -174,59 +222,23 @@
 
     .player-content {
       display: flex;
-      gap: 10px;
-      align-items: stretch;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .stat-grid-wrapper {
-      flex: 1 1 auto;
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
-    .player-summary {
-      flex: 0 0 200px;
-      background: rgba(15, 23, 42, 1);
-      border-radius: 10px;
-      border: 1px solid rgba(59, 130, 246, 0.8);
-      padding: 6px 8px;
-      font-size: 11px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    .stat-grid-wrapper::-webkit-scrollbar {
+      height: 3px;
     }
 
-    .summary-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: #bfdbfe;
-      margin-bottom: 2px;
-    }
-
-    /* Symmetrical table: rows = metrics, columns = Points / Assists / Rebounds */
-    .summary-table {
-      display: grid;
-      grid-template-columns: 70px repeat(3, 1fr); /* metric | Pts | Ast | Reb */
-      column-gap: 6px;
-      row-gap: 2px;
-      align-items: center;
-    }
-
-    .summary-header {
-      font-size: 9px;
-      color: #9ca3af;
-      text-align: center;
-    }
-
-    .summary-stat-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: #e5e7eb;
-    }
-
-    .summary-stat-value {
-      font-weight: 700;
-      font-size: 11px;
-      text-align: center;
-      color: #f9fafb;
+    .stat-grid-wrapper::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.6);
+      border-radius: 999px;
     }
 
     .stat-grid {
@@ -234,12 +246,12 @@
       flex-direction: column;
       gap: 1px;
       font-size: 10px;
-      overflow-x: auto;
+      min-width: 260px;
     }
 
     .stat-row {
       display: grid;
-      grid-template-columns: 30px repeat(10, minmax(18px, 1fr));
+      grid-template-columns: 32px repeat(10, minmax(18px, 1fr));
       gap: 1px;
       align-items: center;
     }
@@ -279,22 +291,75 @@
       opacity: 0.4;
     }
 
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      border: 1px solid rgba(55, 65, 81, 0.9);
-      padding: 2px 8px;
+    /* Summary (mobile-first flex layout) */
+
+    .player-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(59, 130, 246, 0.8);
+      background: rgba(15, 23, 42, 1);
       font-size: 11px;
-      color: #9ca3af;
+    }
+
+    .summary-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #bfdbfe;
+      margin-bottom: 2px;
+    }
+
+    .summary-metrics {
+      display: flex;
+      flex-direction: column;
       gap: 4px;
     }
 
-    .tag-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: #22c55e;
+    .summary-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px 6px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .summary-metric-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .summary-metric-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    .summary-metric-tag {
+      font-size: 10px;
+      color: #9ca3af;
+    }
+
+    .summary-metric-values {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 10px;
+      color: #e5e7eb;
+    }
+
+    .summary-pill-label {
+      color: #9ca3af;
+      margin-right: 2px;
+    }
+
+    .summary-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
     }
 
     .error {
@@ -309,20 +374,41 @@
       margin-top: 4px;
     }
 
-    @media (max-width: 900px) {
+    /* Larger screens: go back to two-column layout */
+    @media (min-width: 960px) {
       .app {
-        flex-direction: column;
+        flex-direction: row;
       }
+
       .sidebar {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+        width: 320px;
+        border-right: 1px solid rgba(148, 163, 184, 0.4);
+        border-bottom: none;
+        padding: 16px;
       }
-      .player-content {
+
+      .games-list {
         flex-direction: column;
+        max-height: calc(100vh - 150px);
+        overflow-y: auto;
+        overflow-x: hidden;
       }
-      .player-summary {
-        flex: 1 1 auto;
+
+      .game-item {
+        min-width: 0;
+      }
+
+      .main {
+        padding: 16px;
+      }
+
+      .teams-container {
+        flex-direction: row;
+        gap: 16px;
+      }
+
+      .team-panel {
+        flex: 1 1 420px;
       }
     }
   </style>
@@ -330,8 +416,10 @@
 <body>
   <div class="app">
     <aside class="sidebar">
-      <h1>NBA Matchups</h1>
-      <small>Click a matchup to load players and last 10 games for each team.</small>
+      <div class="sidebar-header">
+        <h1>NBA Matchups</h1>
+      </div>
+      <small>Tap a matchup to see last 10 games and prop-friendly stats.</small>
       <div id="env-warning" class="env-warning" style="display:none">
         You're running from <strong>file://</strong> (origin <code>null</code>). NBA JSON endpoints don't allow this because of CORS.
         To see REAL data, either:
@@ -340,14 +428,15 @@
           <li>Configure <code>NBA_PROXY_PREFIX</code> to point at your own CORS proxy.</li>
         </ul>
       </div>
-      <div id="sidebar-status" class="loading">Loading today's games…</div>
+      <div id="sidebar-status" class="sidebar-status">Loading today's games…</div>
       <div id="games-list" class="games-list"></div>
     </aside>
 
     <main class="main">
       <div id="game-detail" class="placeholder">
-        Choose a matchup on the left to see players and last 10-game stats.<br /><br />
-        Each player card shows a compact 10-game grid with game dates on top, and on the right a clear LOW (non-zero), AVG, MODE, and MEDIAN for Points / Assists / Rebounds.
+        Choose a matchup above to see each player's last 10 games<br /><br />
+        On each card you'll get a mini game log plus a compact breakdown of<br />
+        <strong>Low (NZ), Avg, Mode, Median</strong> for Points / Assists / Rebounds.
       </div>
     </main>
   </div>
@@ -600,6 +689,51 @@
       return row;
     }
 
+    function buildSummaryMetricBlock(label, low, avg, mode, med) {
+      const block = document.createElement('div');
+      block.className = 'summary-metric';
+
+      const header = document.createElement('div');
+      header.className = 'summary-metric-header';
+
+      const labelEl = document.createElement('div');
+      labelEl.className = 'summary-metric-label';
+      labelEl.textContent = label;
+
+      const tag = document.createElement('div');
+      tag.className = 'summary-metric-tag';
+      tag.textContent = 'L / Avg / Mode / Med';
+
+      header.appendChild(labelEl);
+      header.appendChild(tag);
+
+      const valuesRow = document.createElement('div');
+      valuesRow.className = 'summary-metric-values';
+
+      function pill(label, value) {
+        const wrap = document.createElement('div');
+        wrap.className = 'summary-pill';
+        const l = document.createElement('span');
+        l.className = 'summary-pill-label';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.textContent = (value ?? '-') + '';
+        wrap.appendChild(l);
+        wrap.appendChild(v);
+        return wrap;
+      }
+
+      valuesRow.appendChild(pill('Low NZ:', low));
+      valuesRow.appendChild(pill('Avg:', avg));
+      valuesRow.appendChild(pill('Mode:', mode));
+      valuesRow.appendChild(pill('Med:', med));
+
+      block.appendChild(header);
+      block.appendChild(valuesRow);
+
+      return block;
+    }
+
     function buildPlayerCard(player, teamId, historyStats) {
       const card = document.createElement('div');
       card.className = 'player-card';
@@ -647,65 +781,45 @@
       summaryTitle.className = 'summary-title';
       summaryTitle.textContent = 'Key Prop Stats';
 
-      const table = document.createElement('div');
-      table.className = 'summary-table';
-
-      // Header row: empty | Points | Assists | Rebounds
-      const headerEmpty = document.createElement('div');
-      headerEmpty.textContent = '';
-
-      const headerPts = document.createElement('div');
-      headerPts.className = 'summary-header';
-      headerPts.textContent = 'Points';
-
-      const headerAst = document.createElement('div');
-      headerAst.className = 'summary-header';
-      headerAst.textContent = 'Assists';
-
-      const headerReb = document.createElement('div');
-      headerReb.className = 'summary-header';
-      headerReb.textContent = 'Rebounds';
-
-      table.appendChild(headerEmpty);
-      table.appendChild(headerPts);
-      table.appendChild(headerAst);
-      table.appendChild(headerReb);
-
-      // Helper to add a metric row
-      function addMetricRow(label, pVal, aVal, rVal) {
-        const lbl = document.createElement('div');
-        lbl.className = 'summary-stat-label';
-        lbl.textContent = label;
-
-        const pEl = document.createElement('div');
-        pEl.className = 'summary-stat-value';
-        pEl.textContent = (pVal ?? '-') + '';
-
-        const aEl = document.createElement('div');
-        aEl.className = 'summary-stat-value';
-        aEl.textContent = (aVal ?? '-') + '';
-
-        const rEl = document.createElement('div');
-        rEl.className = 'summary-stat-value';
-        rEl.textContent = (rVal ?? '-') + '';
-
-        table.appendChild(lbl);
-        table.appendChild(pEl);
-        table.appendChild(aEl);
-        table.appendChild(rEl);
-      }
+      const metricsWrap = document.createElement('div');
+      metricsWrap.className = 'summary-metrics';
 
       const lowP = historyStats.minPointsNonZero ?? historyStats.minPoints;
       const lowA = historyStats.minAssistsNonZero ?? historyStats.minAssists;
       const lowR = historyStats.minReboundsNonZero ?? historyStats.minRebounds;
 
-      addMetricRow('LOW (NZ)', lowP, lowA, lowR);
-      addMetricRow('AVG', historyStats.avgPoints, historyStats.avgAssists, historyStats.avgRebounds);
-      addMetricRow('MODE', historyStats.modePoints, historyStats.modeAssists, historyStats.modeRebounds);
-      addMetricRow('MED', historyStats.medianPoints, historyStats.medianAssists, historyStats.medianRebounds);
+      metricsWrap.appendChild(
+        buildSummaryMetricBlock(
+          'Points',
+          lowP,
+          historyStats.avgPoints,
+          historyStats.modePoints,
+          historyStats.medianPoints
+        )
+      );
+
+      metricsWrap.appendChild(
+        buildSummaryMetricBlock(
+          'Assists',
+          lowA,
+          historyStats.avgAssists,
+          historyStats.modeAssists,
+          historyStats.medianAssists
+        )
+      );
+
+      metricsWrap.appendChild(
+        buildSummaryMetricBlock(
+          'Rebounds',
+          lowR,
+          historyStats.avgRebounds,
+          historyStats.modeRebounds,
+          historyStats.medianRebounds
+        )
+      );
 
       summary.appendChild(summaryTitle);
-      summary.appendChild(table);
+      summary.appendChild(metricsWrap);
 
       content.appendChild(gridWrapper);
       content.appendChild(summary);
@@ -823,7 +937,7 @@
       return { games: lastGames, boxscores };
     }
 
-    // helper: given a history (with boxscores) and a teamId, pick a recent boxscore and return that team object (for roster)
+    // helper: pick a recent boxscore to get the roster for a team
     function getReferenceTeamFromHistory(teamHistory, teamId) {
       const refBox = (teamHistory.boxscores || []).find(Boolean);
       if (!refBox) return null;
@@ -840,7 +954,6 @@
       container.innerHTML = '<div class="loading">Loading game details and last 10 games…</div>';
 
       try {
-        // NOTE: we do NOT fetch today's game boxscore, because it may not exist yet.
         const [homeHistory, awayHistory] = await Promise.all([
           buildTeamHistory(game.homeTeam.teamId, game.gameId),
           buildTeamHistory(game.awayTeam.teamId, game.gameId)
@@ -887,7 +1000,6 @@
           panel.className = 'team-panel';
 
           const title = document.createElement('h3');
-          // prefer scoreboard naming if present
           const city = scoreboardTeam.teamCity || refTeam.teamCity || '';
           const name = scoreboardTeam.teamName || refTeam.teamName || '';
           title.textContent = `${city} ${name} (${label})`;
@@ -1004,4 +1116,3 @@
   </script>
 </body>
 </html>
- 
