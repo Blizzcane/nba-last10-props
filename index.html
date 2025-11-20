@@ -291,7 +291,7 @@
       opacity: 0.4;
     }
 
-    /* Summary (mobile-first, table-style with P/A/R horizontally) */
+    /* Summary: rows = P/A/R, columns = LOW/AVG/MODE/MED */
 
     .player-summary {
       display: flex;
@@ -313,7 +313,7 @@
 
     .summary-table {
       display: grid;
-      grid-template-columns: 70px repeat(3, 1fr); /* metric | Points | Assists | Rebounds */
+      grid-template-columns: 70px repeat(4, 1fr); /* stat | LOW | AVG | MODE | MED */
       column-gap: 6px;
       row-gap: 2px;
       align-items: center;
@@ -411,8 +411,9 @@
     <main class="main">
       <div id="game-detail" class="placeholder">
         Choose a matchup above to see each player's last 10 games.<br /><br />
-        Top of each card: <strong>Key Prop Stats</strong> with Points / Assists / Rebounds horizontally.<br />
-        Below that: the 10-game log with dates.
+        Under each name you'll see <strong>Key Prop Stats</strong> with<br />
+        Points / Assists / Rebounds on the left and LOW / AVG / MODE / MED across the top.<br />
+        Below that is the 10-game log with dates.
       </div>
     </main>
   </div>
@@ -686,7 +687,7 @@
       const content = document.createElement('div');
       content.className = 'player-content';
 
-      // --- Key Prop Stats (summary) goes right under name ---
+      // --- Key Prop Stats (summary) under name ---
       const summary = document.createElement('div');
       summary.className = 'player-summary';
 
@@ -697,59 +698,68 @@
       const table = document.createElement('div');
       table.className = 'summary-table';
 
-      // Header row: empty | Points | Assists | Rebounds
+      // Header row: empty | LOW (NZ) | AVG | MODE | MED
       const headerEmpty = document.createElement('div');
       headerEmpty.textContent = '';
 
-      const headerPts = document.createElement('div');
-      headerPts.className = 'summary-header';
-      headerPts.textContent = 'Points';
+      const headerLow = document.createElement('div');
+      headerLow.className = 'summary-header';
+      headerLow.textContent = 'LOW (NZ)';
 
-      const headerAst = document.createElement('div');
-      headerAst.className = 'summary-header';
-      headerAst.textContent = 'Assists';
+      const headerAvg = document.createElement('div');
+      headerAvg.className = 'summary-header';
+      headerAvg.textContent = 'AVG';
 
-      const headerReb = document.createElement('div');
-      headerReb.className = 'summary-header';
-      headerReb.textContent = 'Rebounds';
+      const headerMode = document.createElement('div');
+      headerMode.className = 'summary-header';
+      headerMode.textContent = 'MODE';
+
+      const headerMed = document.createElement('div');
+      headerMed.className = 'summary-header';
+      headerMed.textContent = 'MED';
 
       table.appendChild(headerEmpty);
-      table.appendChild(headerPts);
-      table.appendChild(headerAst);
-      table.appendChild(headerReb);
+      table.appendChild(headerLow);
+      table.appendChild(headerAvg);
+      table.appendChild(headerMode);
+      table.appendChild(headerMed);
 
-      // Helper to add rows: LOW (NZ), AVG, MODE, MED
-      function addMetricRow(label, pVal, aVal, rVal) {
+      // Helper for value rows (Points / Assists / Rebounds)
+      function addStatRow(label, low, avg, mode, med) {
         const lbl = document.createElement('div');
         lbl.className = 'summary-stat-label';
         lbl.textContent = label;
 
-        const pEl = document.createElement('div');
-        pEl.className = 'summary-stat-value';
-        pEl.textContent = (pVal ?? '-') + '';
+        const lowEl = document.createElement('div');
+        lowEl.className = 'summary-stat-value';
+        lowEl.textContent = (low ?? '-') + '';
 
-        const aEl = document.createElement('div');
-        aEl.className = 'summary-stat-value';
-        aEl.textContent = (aVal ?? '-') + '';
+        const avgEl = document.createElement('div');
+        avgEl.className = 'summary-stat-value';
+        avgEl.textContent = (avg ?? '-') + '';
 
-        const rEl = document.createElement('div');
-        rEl.className = 'summary-stat-value';
-        rEl.textContent = (rVal ?? '-') + '';
+        const modeEl = document.createElement('div');
+        modeEl.className = 'summary-stat-value';
+        modeEl.textContent = (mode ?? '-') + '';
+
+        const medEl = document.createElement('div');
+        medEl.className = 'summary-stat-value';
+        medEl.textContent = (med ?? '-') + '';
 
         table.appendChild(lbl);
-        table.appendChild(pEl);
-        table.appendChild(aEl);
-        table.appendChild(rEl);
+        table.appendChild(lowEl);
+        table.appendChild(avgEl);
+        table.appendChild(modeEl);
+        table.appendChild(medEl);
       }
 
       const lowP = historyStats.minPointsNonZero ?? historyStats.minPoints;
       const lowA = historyStats.minAssistsNonZero ?? historyStats.minAssists;
       const lowR = historyStats.minReboundsNonZero ?? historyStats.minRebounds;
 
-      addMetricRow('LOW (NZ)', lowP, lowA, lowR);
-      addMetricRow('AVG', historyStats.avgPoints, historyStats.avgAssists, historyStats.avgRebounds);
-      addMetricRow('MODE', historyStats.modePoints, historyStats.modeAssists, historyStats.modeRebounds);
-      addMetricRow('MED', historyStats.medianPoints, historyStats.medianAssists, historyStats.medianRebounds);
+      addStatRow('Points', lowP, historyStats.avgPoints, historyStats.modePoints, historyStats.medianPoints);
+      addStatRow('Assists', lowA, historyStats.avgAssists, historyStats.modeAssists, historyStats.medianAssists);
+      addStatRow('Rebounds', lowR, historyStats.avgRebounds, historyStats.modeRebounds, historyStats.medianRebounds);
 
       summary.appendChild(summaryTitle);
       summary.appendChild(table);
@@ -961,16 +971,18 @@
           playersList.className = 'players-list';
 
           const players = (refTeam.players || []).slice();
-          players.sort((a, b) => {
-            const aStarter = a.starter === '1' ? 1 : 0;
-            const bStarter = b.starter === '1' ? 1 : 0;
-            if (aStarter !== bStarter) return bStarter - aStarter;
-            return (b.statistics?.points || 0) - (a.statistics?.points || 0);
-          });
 
-          players.forEach(player => {
-            const hist = computePlayerHistory(player.personId, refTeam.teamId, history);
-            const card = buildPlayerCard(player, refTeam.teamId, hist);
+          // Precompute history per player so we can sort by avgPoints
+          const playerWithHistory = players.map(p => ({
+            player: p,
+            history: computePlayerHistory(p.personId, refTeam.teamId, history)
+          }));
+
+          // Sort: highest average points over last 10 first
+          playerWithHistory.sort((a, b) => (b.history.avgPoints || 0) - (a.history.avgPoints || 0));
+
+          playerWithHistory.forEach(entry => {
+            const card = buildPlayerCard(entry.player, refTeam.teamId, entry.history);
             playersList.appendChild(card);
           });
 
