@@ -291,7 +291,7 @@
       opacity: 0.4;
     }
 
-    /* Summary (mobile-first flex layout) */
+    /* Summary (mobile-first, table-style with P/A/R horizontally) */
 
     .player-summary {
       display: flex;
@@ -311,55 +311,31 @@
       margin-bottom: 2px;
     }
 
-    .summary-metrics {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .summary-metric {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 4px 6px;
-      border-radius: 8px;
-      background: rgba(15, 23, 42, 0.9);
-    }
-
-    .summary-metric-header {
-      display: flex;
-      justify-content: space-between;
+    .summary-table {
+      display: grid;
+      grid-template-columns: 70px repeat(3, 1fr); /* metric | Points | Assists | Rebounds */
+      column-gap: 6px;
+      row-gap: 2px;
       align-items: center;
     }
 
-    .summary-metric-label {
-      font-size: 11px;
+    .summary-header {
+      font-size: 9px;
+      color: #9ca3af;
+      text-align: center;
+    }
+
+    .summary-stat-label {
+      font-size: 10px;
       font-weight: 600;
       color: #e5e7eb;
     }
 
-    .summary-metric-tag {
-      font-size: 10px;
-      color: #9ca3af;
-    }
-
-    .summary-metric-values {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      font-size: 10px;
-      color: #e5e7eb;
-    }
-
-    .summary-pill-label {
-      color: #9ca3af;
-      margin-right: 2px;
-    }
-
-    .summary-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
+    .summary-stat-value {
+      font-weight: 700;
+      font-size: 11px;
+      text-align: center;
+      color: #f9fafb;
     }
 
     .error {
@@ -374,7 +350,7 @@
       margin-top: 4px;
     }
 
-    /* Larger screens: go back to two-column layout */
+    /* Larger screens: two-column layout */
     @media (min-width: 960px) {
       .app {
         flex-direction: row;
@@ -434,9 +410,9 @@
 
     <main class="main">
       <div id="game-detail" class="placeholder">
-        Choose a matchup above to see each player's last 10 games<br /><br />
-        On each card you'll get a mini game log plus a compact breakdown of<br />
-        <strong>Low (NZ), Avg, Mode, Median</strong> for Points / Assists / Rebounds.
+        Choose a matchup above to see each player's last 10 games.<br /><br />
+        Top of each card: <strong>Key Prop Stats</strong> with Points / Assists / Rebounds horizontally.<br />
+        Below that: the 10-game log with dates.
       </div>
     </main>
   </div>
@@ -689,51 +665,6 @@
       return row;
     }
 
-    function buildSummaryMetricBlock(label, low, avg, mode, med) {
-      const block = document.createElement('div');
-      block.className = 'summary-metric';
-
-      const header = document.createElement('div');
-      header.className = 'summary-metric-header';
-
-      const labelEl = document.createElement('div');
-      labelEl.className = 'summary-metric-label';
-      labelEl.textContent = label;
-
-      const tag = document.createElement('div');
-      tag.className = 'summary-metric-tag';
-      tag.textContent = 'L / Avg / Mode / Med';
-
-      header.appendChild(labelEl);
-      header.appendChild(tag);
-
-      const valuesRow = document.createElement('div');
-      valuesRow.className = 'summary-metric-values';
-
-      function pill(label, value) {
-        const wrap = document.createElement('div');
-        wrap.className = 'summary-pill';
-        const l = document.createElement('span');
-        l.className = 'summary-pill-label';
-        l.textContent = label;
-        const v = document.createElement('span');
-        v.textContent = (value ?? '-') + '';
-        wrap.appendChild(l);
-        wrap.appendChild(v);
-        return wrap;
-      }
-
-      valuesRow.appendChild(pill('Low NZ:', low));
-      valuesRow.appendChild(pill('Avg:', avg));
-      valuesRow.appendChild(pill('Mode:', mode));
-      valuesRow.appendChild(pill('Med:', med));
-
-      block.appendChild(header);
-      block.appendChild(valuesRow);
-
-      return block;
-    }
-
     function buildPlayerCard(player, teamId, historyStats) {
       const card = document.createElement('div');
       card.className = 'player-card';
@@ -755,6 +686,75 @@
       const content = document.createElement('div');
       content.className = 'player-content';
 
+      // --- Key Prop Stats (summary) goes right under name ---
+      const summary = document.createElement('div');
+      summary.className = 'player-summary';
+
+      const summaryTitle = document.createElement('div');
+      summaryTitle.className = 'summary-title';
+      summaryTitle.textContent = 'Key Prop Stats';
+
+      const table = document.createElement('div');
+      table.className = 'summary-table';
+
+      // Header row: empty | Points | Assists | Rebounds
+      const headerEmpty = document.createElement('div');
+      headerEmpty.textContent = '';
+
+      const headerPts = document.createElement('div');
+      headerPts.className = 'summary-header';
+      headerPts.textContent = 'Points';
+
+      const headerAst = document.createElement('div');
+      headerAst.className = 'summary-header';
+      headerAst.textContent = 'Assists';
+
+      const headerReb = document.createElement('div');
+      headerReb.className = 'summary-header';
+      headerReb.textContent = 'Rebounds';
+
+      table.appendChild(headerEmpty);
+      table.appendChild(headerPts);
+      table.appendChild(headerAst);
+      table.appendChild(headerReb);
+
+      // Helper to add rows: LOW (NZ), AVG, MODE, MED
+      function addMetricRow(label, pVal, aVal, rVal) {
+        const lbl = document.createElement('div');
+        lbl.className = 'summary-stat-label';
+        lbl.textContent = label;
+
+        const pEl = document.createElement('div');
+        pEl.className = 'summary-stat-value';
+        pEl.textContent = (pVal ?? '-') + '';
+
+        const aEl = document.createElement('div');
+        aEl.className = 'summary-stat-value';
+        aEl.textContent = (aVal ?? '-') + '';
+
+        const rEl = document.createElement('div');
+        rEl.className = 'summary-stat-value';
+        rEl.textContent = (rVal ?? '-') + '';
+
+        table.appendChild(lbl);
+        table.appendChild(pEl);
+        table.appendChild(aEl);
+        table.appendChild(rEl);
+      }
+
+      const lowP = historyStats.minPointsNonZero ?? historyStats.minPoints;
+      const lowA = historyStats.minAssistsNonZero ?? historyStats.minAssists;
+      const lowR = historyStats.minReboundsNonZero ?? historyStats.minRebounds;
+
+      addMetricRow('LOW (NZ)', lowP, lowA, lowR);
+      addMetricRow('AVG', historyStats.avgPoints, historyStats.avgAssists, historyStats.avgRebounds);
+      addMetricRow('MODE', historyStats.modePoints, historyStats.modeAssists, historyStats.modeRebounds);
+      addMetricRow('MED', historyStats.medianPoints, historyStats.medianAssists, historyStats.medianRebounds);
+
+      summary.appendChild(summaryTitle);
+      summary.appendChild(table);
+
+      // --- 10-game log grid below summary ---
       const gridWrapper = document.createElement('div');
       gridWrapper.className = 'stat-grid-wrapper';
 
@@ -773,56 +773,8 @@
 
       gridWrapper.appendChild(statGrid);
 
-      // Summary box: LOW (NZ), AVG, MODE, MEDIAN for Points / Assists / Rebounds
-      const summary = document.createElement('div');
-      summary.className = 'player-summary';
-
-      const summaryTitle = document.createElement('div');
-      summaryTitle.className = 'summary-title';
-      summaryTitle.textContent = 'Key Prop Stats';
-
-      const metricsWrap = document.createElement('div');
-      metricsWrap.className = 'summary-metrics';
-
-      const lowP = historyStats.minPointsNonZero ?? historyStats.minPoints;
-      const lowA = historyStats.minAssistsNonZero ?? historyStats.minAssists;
-      const lowR = historyStats.minReboundsNonZero ?? historyStats.minRebounds;
-
-      metricsWrap.appendChild(
-        buildSummaryMetricBlock(
-          'Points',
-          lowP,
-          historyStats.avgPoints,
-          historyStats.modePoints,
-          historyStats.medianPoints
-        )
-      );
-
-      metricsWrap.appendChild(
-        buildSummaryMetricBlock(
-          'Assists',
-          lowA,
-          historyStats.avgAssists,
-          historyStats.modeAssists,
-          historyStats.medianAssists
-        )
-      );
-
-      metricsWrap.appendChild(
-        buildSummaryMetricBlock(
-          'Rebounds',
-          lowR,
-          historyStats.avgRebounds,
-          historyStats.modeRebounds,
-          historyStats.medianRebounds
-        )
-      );
-
-      summary.appendChild(summaryTitle);
-      summary.appendChild(metricsWrap);
-
-      content.appendChild(gridWrapper);
       content.appendChild(summary);
+      content.appendChild(gridWrapper);
 
       card.appendChild(header);
       card.appendChild(content);
