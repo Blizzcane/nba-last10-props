@@ -115,6 +115,14 @@
       font-weight: 500;
     }
 
+    .game-record {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 2px;
+    }
+
     .game-meta {
       font-size: 11px;
       color: #9ca3af;
@@ -131,10 +139,24 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 16px;
+    }
+
+    .placeholder-inner {
+      max-width: 420px;
+      text-align: left;
+    }
+
+    .placeholder-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .placeholder-body {
+      font-size: 13px;
       color: #9ca3af;
-      font-size: 14px;
-      text-align: center;
-      padding: 0 16px;
+      line-height: 1.4;
     }
 
     .game-header {
@@ -279,12 +301,15 @@
       background: rgba(15, 23, 42, 0.95);
       border: 1px solid rgba(31, 41, 55, 0.9);
       min-width: 18px;
+      font-size: 11px;
+      font-weight: 600; /* make game log numbers stand out more */
     }
 
     .stat-cell--date {
       font-size: 9px;
       color: #9ca3af;
       border-style: dotted;
+      font-weight: 500;
     }
 
     .stat-cell--empty {
@@ -332,8 +357,8 @@
     }
 
     .summary-stat-value {
-      font-weight: 700;
-      font-size: 11px;
+      font-weight: 800; /* bolder key numbers */
+      font-size: 12px;
       text-align: center;
       color: #f9fafb;
     }
@@ -410,10 +435,13 @@
 
     <main class="main">
       <div id="game-detail" class="placeholder">
-        Choose a matchup above to see each player's last 10 games.<br /><br />
-        Under each name you'll see <strong>Key Prop Stats</strong> with<br />
-        Points / Assists / Rebounds on the left and LOW / AVG / MODE / MED across the top.<br />
-        Below that is the 10-game log with dates (oldest on the left, newest on the right).
+        <div class="placeholder-inner">
+          <p class="placeholder-title">Pick a matchup to get started</p>
+          <p class="placeholder-body">
+            You'll see each player's last 10 games plus prop stats (low, average, mode, median)
+            for points, assists, and rebounds. Newest game is on the right in the mini game log.
+          </p>
+        </div>
       </div>
     </main>
   </div>
@@ -435,7 +463,6 @@
       boxscoreCache: {}
     };
 
-    // === Helper: basic JSON fetch with defensive error handling ===
     async function fetchJson(url) {
       const finalUrl = NBA_PROXY_PREFIX
         ? NBA_PROXY_PREFIX + encodeURIComponent(url)
@@ -449,7 +476,7 @@
         return await res.json();
       } catch (err) {
         console.error('Fetch failed for', finalUrl, err);
-        return null; // prevent uncaught TypeError: Failed to fetch
+        return null;
       }
     }
 
@@ -490,6 +517,13 @@
       return data;
     }
 
+    function formatRecord(team) {
+      const w = team && typeof team.wins === 'number' ? team.wins : null;
+      const l = team && typeof team.losses === 'number' ? team.losses : null;
+      if (w === null || l === null) return '';
+      return `${w}-${l}`;
+    }
+
     function renderGamesList(scoreboard) {
       const listEl = document.getElementById('games-list');
       const statusEl = document.getElementById('sidebar-status');
@@ -516,12 +550,23 @@
           <span>${game.homeTeam.teamTricode}</span>
         `;
 
+        const record = document.createElement('div');
+        record.className = 'game-record';
+        const awayRec = formatRecord(game.awayTeam);
+        const homeRec = formatRecord(game.homeTeam);
+        record.innerHTML = `
+          <span>${awayRec}</span>
+          <span></span>
+          <span>${homeRec}</span>
+        `;
+
         const meta = document.createElement('div');
         meta.className = 'game-meta';
         const statusText = game.gameStatusText || (game.gameStatus === 1 ? 'Scheduled' : 'In Progress');
         meta.textContent = `${statusText}`;
 
         item.appendChild(teams);
+        item.appendChild(record);
         item.appendChild(meta);
 
         item.addEventListener('click', () => {
@@ -549,7 +594,6 @@
       return Math.min(...filtered);
     }
 
-    // Prefer lowest NON-ZERO value; only use 0 if that's all there is.
     function minNonZeroPreferred(values) {
       const filtered = values.filter(v => v !== null && v !== undefined);
       if (!filtered.length) return { low: null, lowNonZero: null };
@@ -566,7 +610,6 @@
       return Number((sum / filtered.length).toFixed(1));
     }
 
-    // Mode: most frequent value (includes zeros)
     function modeNonNull(values) {
       const filtered = values.filter(v => v !== null && v !== undefined);
       if (!filtered.length) return null;
@@ -584,7 +627,6 @@
       return bestVal;
     }
 
-    // Median: middle value, average of two middles if even length
     function medianNonNull(values) {
       const filtered = values
         .filter(v => v !== null && v !== undefined)
@@ -605,17 +647,14 @@
     function formatScheduleDate(raw) {
       if (!raw) return null;
 
-      // Case 1: MM/DD/YYYY (e.g. 11/19/2025)
       if (raw.includes('/')) {
-        return raw.slice(0, 5); // "11/19"
+        return raw.slice(0, 5); // "MM/DD"
       }
 
-      // Case 2: YYYY-MM-DD (e.g. 2025-11-19)
       if (raw.length >= 10 && raw[4] === '-') {
-        return raw.slice(5, 10); // "11-19"
+        return raw.slice(5, 10); // "MM-DD"
       }
 
-      // Fallback: just show what we got
       return raw;
     }
 
@@ -687,7 +726,7 @@
       const content = document.createElement('div');
       content.className = 'player-content';
 
-      // --- Key Prop Stats (summary) under name ---
+      // --- Key Prop Stats summary ---
       const summary = document.createElement('div');
       summary.className = 'player-summary';
 
@@ -724,7 +763,6 @@
       table.appendChild(headerMode);
       table.appendChild(headerMed);
 
-      // Helper for value rows (Points / Assists / Rebounds)
       function addStatRow(label, low, avg, mode, med) {
         const lbl = document.createElement('div');
         lbl.className = 'summary-stat-label';
@@ -764,7 +802,7 @@
       summary.appendChild(summaryTitle);
       summary.appendChild(table);
 
-      // --- 10-game log grid below summary ---
+      // --- 10-game log grid ---
       const gridWrapper = document.createElement('div');
       gridWrapper.className = 'stat-grid-wrapper';
 
@@ -886,7 +924,7 @@
       const endIdx = idx === -1 ? teamGames.length : idx; // games BEFORE this matchup
       const startIdx = Math.max(0, endIdx - n);
       const slice = teamGames.slice(startIdx, endIdx); // oldest -> newest
-      return slice; // newest will end up on the right in the grid
+      return slice;
     }
 
     async function buildTeamHistory(teamId, currentGameId) {
@@ -899,7 +937,6 @@
       return { games: lastGames, boxscores };
     }
 
-    // helper: pick a recent boxscore to get the roster for a team
     function getReferenceTeamFromHistory(teamHistory, teamId) {
       const refBox = (teamHistory.boxscores || []).slice().reverse().find(Boolean);
       if (!refBox) return null;
@@ -972,14 +1009,15 @@
 
           const players = (refTeam.players || []).slice();
 
-          // Precompute history per player so we can sort by avgPoints
           const playerWithHistory = players.map(p => ({
             player: p,
             history: computePlayerHistory(p.personId, refTeam.teamId, history)
           }));
 
-          // Sort: highest average points over last 10 first
-          playerWithHistory.sort((a, b) => (b.history.avgPoints || 0) - (a.history.avgPoints || 0)).reverse();
+          // sort by avg points desc
+          playerWithHistory.sort(
+            (a, b) => (b.history.avgPoints || 0) - (a.history.avgPoints || 0)
+          );
 
           playerWithHistory.forEach(entry => {
             const card = buildPlayerCard(entry.player, refTeam.teamId, entry.history);
@@ -1007,7 +1045,6 @@
       }
     }
 
-    // === Simple test cases for helper functions ===
     function runTests() {
       console.group('Helper tests');
 
