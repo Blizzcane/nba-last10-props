@@ -413,7 +413,7 @@
         Choose a matchup above to see each player's last 10 games.<br /><br />
         Under each name you'll see <strong>Key Prop Stats</strong> with<br />
         Points / Assists / Rebounds on the left and LOW / AVG / MODE / MED across the top.<br />
-        Below that is the 10-game log with dates.
+        Below that is the 10-game log with dates (oldest on the left, newest on the right).
       </div>
     </main>
   </div>
@@ -885,8 +885,8 @@
       const idx = teamGames.findIndex(g => String(g.gameId) === String(currentGameId));
       const endIdx = idx === -1 ? teamGames.length : idx; // games BEFORE this matchup
       const startIdx = Math.max(0, endIdx - n);
-      const slice = teamGames.slice(startIdx, endIdx);
-      return slice.reverse(); // most recent first
+      const slice = teamGames.slice(startIdx, endIdx); // oldest -> newest
+      return slice; // newest will end up on the right in the grid
     }
 
     async function buildTeamHistory(teamId, currentGameId) {
@@ -901,7 +901,7 @@
 
     // helper: pick a recent boxscore to get the roster for a team
     function getReferenceTeamFromHistory(teamHistory, teamId) {
-      const refBox = (teamHistory.boxscores || []).find(Boolean);
+      const refBox = (teamHistory.boxscores || []).slice().reverse().find(Boolean);
       if (!refBox) return null;
       const g = refBox.game || refBox;
       if (String(g.homeTeam.teamId) === String(teamId)) return g.homeTeam;
@@ -979,7 +979,7 @@
           }));
 
           // Sort: highest average points over last 10 first
-          playerWithHistory.sort((a, b) => (b.history.avgPoints || 0) - (a.history.avgPoints || 0));
+          playerWithHistory.sort((a, b) => (b.history.avgPoints || 0) - (a.history.avgPoints || 0)).reverse();
 
           playerWithHistory.forEach(entry => {
             const card = buildPlayerCard(entry.player, refTeam.teamId, entry.history);
@@ -1024,7 +1024,7 @@
         { gameId: 'D', homeTeam: { teamId: 1 }, awayTeam: { teamId: 5 } }
       ];
       const last2BeforeC = getLastNGamesForTeam(fakeSchedule, 1, 'C', 2);
-      console.log('Expect [B, A]:', last2BeforeC.map(g => g.gameId));
+      console.log('Expect [A, B]:', last2BeforeC.map(g => g.gameId));
 
       console.log('minNonZeroPreferred tests');
       console.log('Expect low=2, lowNonZero=2:', minNonZeroPreferred([0, 2, 5, 0, 7]));
