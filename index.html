@@ -183,7 +183,7 @@
     }
 
     .player-summary {
-      flex: 0 0 160px;
+      flex: 0 0 180px;
       background: rgba(15, 23, 42, 1);
       border-radius: 10px;
       border: 1px solid rgba(59, 130, 246, 0.8);
@@ -201,25 +201,32 @@
       margin-bottom: 2px;
     }
 
-    .summary-row {
-      display: flex;
-      justify-content: space-between;
+    /* Symmetrical LOW / AVG table */
+    .summary-table {
+      display: grid;
+      grid-template-columns: 30px 1fr 1fr; /* label | LOW | AVG */
+      column-gap: 6px;
+      row-gap: 2px;
       align-items: center;
-      gap: 4px;
     }
 
-    .summary-label {
-      font-weight: 600;
+    .summary-header {
+      font-size: 9px;
       color: #9ca3af;
-      white-space: nowrap;
+      text-align: right;
     }
 
-    .summary-value {
+    .summary-stat-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #e5e7eb;
+    }
+
+    .summary-stat-value {
       font-weight: 700;
-      color: #f9fafb;
       font-size: 11px;
       text-align: right;
-      white-space: nowrap;
+      color: #f9fafb;
     }
 
     .stat-grid {
@@ -495,10 +502,18 @@
 
     function formatScheduleDate(raw) {
       if (!raw) return null;
-      // Expecting YYYY-MM-DD, keep MM-DD for compact view
-      if (raw.length >= 10) {
-        return raw.slice(5, 10);
+
+      // Case 1: MM/DD/YYYY (e.g. 11/19/2025)
+      if (raw.includes('/')) {
+        return raw.slice(0, 5); // "11/19"
       }
+
+      // Case 2: YYYY-MM-DD (e.g. 2025-11-19)
+      if (raw.length >= 10 && raw[4] === '-') {
+        return raw.slice(5, 10); // "11-19"
+      }
+
+      // Fallback: just show what we got
       return raw;
     }
 
@@ -588,6 +603,7 @@
 
       gridWrapper.appendChild(statGrid);
 
+      // Summary (LOW NZ + AVG, symmetrical)
       const summary = document.createElement('div');
       summary.className = 'player-summary';
 
@@ -595,38 +611,54 @@
       summaryTitle.className = 'summary-title';
       summaryTitle.textContent = 'Key Prop Stats';
 
-      const lowRow = document.createElement('div');
-      lowRow.className = 'summary-row';
-      const lowLabel = document.createElement('div');
-      lowLabel.className = 'summary-label';
-      lowLabel.textContent = 'LOW (NZ)';
+      const table = document.createElement('div');
+      table.className = 'summary-table';
 
-      const lowVal = document.createElement('div');
-      lowVal.className = 'summary-value';
+      // Header: empty | LOW (NZ) | AVG
+      const headerEmpty = document.createElement('div');
+      headerEmpty.textContent = '';
+
+      const headerLow = document.createElement('div');
+      headerLow.className = 'summary-header';
+      headerLow.textContent = 'LOW (NZ)';
+
+      const headerAvg = document.createElement('div');
+      headerAvg.className = 'summary-header';
+      headerAvg.textContent = 'AVG';
+
+      table.appendChild(headerEmpty);
+      table.appendChild(headerLow);
+      table.appendChild(headerAvg);
+
+      // Helper to add stat rows
+      function addSummaryRow(label, low, avg) {
+        const lbl = document.createElement('div');
+        lbl.className = 'summary-stat-label';
+        lbl.textContent = label;
+
+        const lowEl = document.createElement('div');
+        lowEl.className = 'summary-stat-value';
+        lowEl.textContent = (low ?? '-') + '';
+
+        const avgEl = document.createElement('div');
+        avgEl.className = 'summary-stat-value';
+        avgEl.textContent = (avg ?? '-') + '';
+
+        table.appendChild(lbl);
+        table.appendChild(lowEl);
+        table.appendChild(avgEl);
+      }
+
       const lowP = historyStats.minPointsNonZero ?? historyStats.minPoints;
       const lowR = historyStats.minReboundsNonZero ?? historyStats.minRebounds;
       const lowA = historyStats.minAssistsNonZero ?? historyStats.minAssists;
-      lowVal.textContent = `P:${lowP ?? '-'} R:${lowR ?? '-'} A:${lowA ?? '-'}`;
 
-      lowRow.appendChild(lowLabel);
-      lowRow.appendChild(lowVal);
-
-      const avgRow = document.createElement('div');
-      avgRow.className = 'summary-row';
-      const avgLabel = document.createElement('div');
-      avgLabel.className = 'summary-label';
-      avgLabel.textContent = 'AVG';
-
-      const avgVal = document.createElement('div');
-      avgVal.className = 'summary-value';
-      avgVal.textContent = `P:${historyStats.avgPoints ?? '-'} R:${historyStats.avgRebounds ?? '-'} A:${historyStats.avgAssists ?? '-'}`;
-
-      avgRow.appendChild(avgLabel);
-      avgRow.appendChild(avgVal);
+      addSummaryRow('P', lowP, historyStats.avgPoints);
+      addSummaryRow('R', lowR, historyStats.avgRebounds);
+      addSummaryRow('A', lowA, historyStats.avgAssists);
 
       summary.appendChild(summaryTitle);
-      summary.appendChild(lowRow);
-      summary.appendChild(avgRow);
+      summary.appendChild(table);
 
       content.appendChild(gridWrapper);
       content.appendChild(summary);
@@ -850,7 +882,8 @@
       console.log('Expect null:', avgNonNull([null, undefined]));
 
       console.log('formatScheduleDate tests');
-      console.log('Expect 11-21:', formatScheduleDate('2024-11-21'));
+      console.log('Expect 11/21:', formatScheduleDate('11/21/2025'));
+      console.log('Expect 11-21:', formatScheduleDate('2025-11-21'));
       console.log('Expect null:', formatScheduleDate(null));
 
       console.groupEnd();
@@ -866,7 +899,7 @@
         const scoreboard = await loadScoreboard();
         if (!scoreboard) {
           const statusEl = document.getElementById('sidebar-status');
-          statusEl.textContent = 'Failed to load today\'s games. This is almost certainly CORS (no proxy) or network.';
+          statusEl.textContent = "Failed to load today's games. This is almost certainly CORS (no proxy) or network.";
           return;
         }
         renderGamesList(scoreboard);
