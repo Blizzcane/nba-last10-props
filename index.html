@@ -213,6 +213,14 @@
       opacity: 0.4;
     }
 
+    /* Highlight lowest non-zero values in red so they pop for betting decisions */
+    .stat-cell--low {
+      background: rgba(127, 29, 29, 0.9);
+      border-color: rgba(248, 113, 113, 0.95);
+      color: #fee2e2;
+      font-weight: 700;
+    }
+
     .tag {
       display: inline-flex;
       align-items: center;
@@ -275,7 +283,7 @@
     <main class="main">
       <div id="game-detail" class="placeholder">
         Choose a matchup on the left to see players and last 10-game stats.<br /><br />
-        If you see CORS errors in the console, read the red note on the left.
+        Lowest <strong>non-zero</strong> values in each row will be highlighted in red.
       </div>
     </main>
   </div>
@@ -287,12 +295,7 @@
     const BOXSCORE_BASE_URL = 'https://cdn.nba.com/static/json/liveData/boxscore/boxscore_';
     const GAMES_TO_LOOK_BACK = 10;
 
-    // IMPORTANT: For real NBA data from a browser, you need to solve CORS.
-    // Option A: leave NBA_PROXY_PREFIX = '' and proxy via your OWN backend.
-    // Option B: point NBA_PROXY_PREFIX to a CORS proxy you control that returns Access-Control-Allow-Origin: *.
-    // Example (if you set one up):
-    //   const NBA_PROXY_PREFIX = 'https://your-domain.com/nba-proxy?url=';
-    // When deployed on Vercel, this should point to your serverless proxy function (see /api/nba-proxy.js below).
+    // When deployed on Vercel, this points to your serverless proxy function.
     const NBA_PROXY_PREFIX = '/api/nba-proxy?url=';
 
     const appState = {
@@ -416,7 +419,17 @@
       return Math.min(...filtered);
     }
 
-    function createStatRow(label, values) {
+    // New helper: prefer lowest NON-ZERO value; only use 0 if that's all there is.
+    function minNonZeroPreferred(values) {
+      const filtered = values.filter(v => v !== null && v !== undefined);
+      if (!filtered.length) return { low: null, lowNonZero: null };
+      const nonZero = filtered.filter(v => v !== 0);
+      const lowNonZero = nonZero.length ? Math.min(...nonZero) : null;
+      const low = lowNonZero !== null ? lowNonZero : Math.min(...filtered);
+      return { low, lowNonZero };
+    }
+
+    function createStatRow(label, values, lowValue) {
       const row = document.createElement('div');
       row.className = 'stat-row';
 
@@ -435,6 +448,9 @@
           cell.textContent = '-';
         } else {
           cell.textContent = val;
+          if (lowValue !== null && lowValue !== undefined && val === lowValue) {
+            cell.classList.add('stat-cell--low');
+          }
         }
         row.appendChild(cell);
       }
@@ -460,7 +476,8 @@
       const minimaEl = document.createElement('div');
       minimaEl.className = 'player-minima';
       const { minPoints, minAssists, minRebounds } = historyStats;
-      minimaEl.textContent = `LOW PTS: ${minPoints ?? '-'} | AST: ${minAssists ?? '-'} | REB: ${minRebounds ?? '-'}`;
+      // More concise summary: LOW: P x / A y / R z
+      minimaEl.textContent = `LOW P:${minPoints ?? '-'} A:${minAssists ?? '-'} R:${minRebounds ?? '-'}`;
 
       const left = document.createElement('div');
       left.appendChild(nameEl);
@@ -472,9 +489,9 @@
       const statGrid = document.createElement('div');
       statGrid.className = 'stat-grid';
 
-      const ptsRow = createStatRow('PTS', historyStats.points);
-      const astRow = createStatRow('AST', historyStats.assists);
-      const rebRow = createStatRow('REB', historyStats.rebounds);
+      const ptsRow = createStatRow('PTS', historyStats.points, historyStats.lowPointsValue);
+      const astRow = createStatRow('AST', historyStats.assists, historyStats.lowAssistsValue);
+      const rebRow = createStatRow('REB', historyStats.rebounds, historyStats.lowReboundsValue);
 
       statGrid.appendChild(ptsRow);
       statGrid.appendChild(astRow);
@@ -523,11 +540,21 @@
         }
       });
 
-      const minPoints = minNonNull(points);
-      const minAssists = minNonNull(assists);
-      const minRebounds = minNonNull(rebounds);
+      const { low: minPoints, lowNonZero: lowPointsNonZero } = minNonZeroPreferred(points);
+      const { low: minAssists, lowNonZero: lowAssistsNonZero } = minNonZeroPreferred(assists);
+      const { low: minRebounds, lowNonZero: lowReboundsNonZero } = minNonZeroPreferred(rebounds);
 
-      return { points, assists, rebounds, minPoints, minAssists, minRebounds };
+      return {
+        points,
+        assists,
+        rebounds,
+        minPoints,
+        minAssists,
+        minRebounds,
+        lowPointsValue: lowPointsNonZero ?? minPoints,
+        lowAssistsValue: lowAssistsNonZero ?? minAssists,
+        lowReboundsValue: lowReboundsNonZero ?? minRebounds
+      };
     }
 
     function getLastNGamesForTeam(scheduleGames, teamId, currentGameId, n) {
@@ -662,6 +689,11 @@
       ];
       const last2BeforeC = getLastNGamesForTeam(fakeSchedule, 1, 'C', 2);
       console.log('Expect [B, A]:', last2BeforeC.map(g => g.gameId));
+
+      console.log('minNonZeroPreferred tests');
+      console.log('Expect low=2, lowNonZero=2:', minNonZeroPreferred([0, 2, 5, 0, 7]));
+      console.log('Expect low=5, lowNonZero=5 (no zeros):', minNonZeroPreferred([5, 9, 12]));
+      console.log('Expect low=0, lowNonZero=null (only zeros):', minNonZeroPreferred([0, 0]));
 
       console.groupEnd();
     }
